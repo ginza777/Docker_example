@@ -1,0 +1,56 @@
+version: '3'
+
+volumes:
+  static_data:
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '${PWD}/static'
+    labels:
+      - 'disable'
+  postgres_data:
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '${PWD}/postgres_data'
+    labels:
+      - 'disable'
+
+
+
+services:
+  web: &web
+    container_name: test_web
+    depends_on:
+      - db
+    build: .
+    volumes:
+      - static_data:/path/to/static/in/container:rw
+      - .:/app/
+      - ./media:/home/app/web/media
+      - ./locale:/home/app/web/locale
+
+    env_file: .env
+    command: dockerize -wait tcp://db:5432 -timeout 1m gunicorn docker.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - 8002:8000
+    environment:
+      - TZ=Asia/Tashkent
+    restart: always
+
+
+  db:
+    image: postgres:12.0-alpine
+    container_name: test_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file: .env
+    environment:
+        - POSTGRES_USER=postgres
+        - POSTGRES_PASSWORD=postgres
+        - POSTGRES_DB=postgres
+        - POSTGRES_PORT=5432
+    ports:
+        - 5433:5432
+
+    restart: always
